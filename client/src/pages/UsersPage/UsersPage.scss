@@ -1,0 +1,184 @@
+@use "sass:color";
+
+$primary-color: #7d5a5a;
+$border-color: #efb1c3;
+$bg-card: #ffffff;
+$text-color: #333;
+$danger-color: #fbc1b1;
+$danger-hover: #f8a898;
+$edit-color: #fde3cf;
+$edit-hover: #f5d5b8;
+
+.users-page {
+  padding: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+
+  .users-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+
+    h1 {
+      margin: 0;
+      color: $primary-color;
+      font-size: 2rem;
+      font-weight: 400;
+    }
+
+    .btn {
+      padding: 0.5rem 1rem;
+      border-radius: 20px;
+      border: 1px solid $border-color;
+      background: white;
+      cursor: pointer;
+      transition: all 0.2s;
+
+      &:hover {
+        background: $primary-color;
+        color: white;
+        border-color: $primary-color;
+      }
+
+      &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+    }
+  }
+
+  .loading-spinner,
+  .error-message,
+  .empty-state {
+    text-align: center;
+    padding: 3rem;
+    font-size: 1.2rem;
+    color: $primary-color;
+    background: rgba(255, 255, 255, 0.8);
+    border-radius: 12px;
+    border: 1px dashed $border-color;
+  }
+
+  .error-message {
+    color: #d32f2f;
+    background: #ffebee;
+  }
+}
+
+.users-list-container {
+  background: white;
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba($border-color, 0.2);
+}
+
+.users-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+
+  th {
+    text-align: left;
+    padding: 1rem 0.5rem 0.5rem 0.5rem;
+    border-bottom: 2px solid $border-color;
+    color: $primary-color;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+  }
+
+  td {
+    padding: 0.75rem 0.5rem;
+    border-bottom: 1px solid rgba($border-color, 0.2);
+    color: $text-color;
+  }
+
+  tr:hover td {
+    background-color: rgba($border-color, 0.05);
+  }
+
+  .user-id {
+    font-family: monospace;
+    font-weight: 500;
+    color: $primary-color;
+  }
+
+  .user-email {
+    font-style: italic;
+  }
+
+  .user-actions {
+    display: flex;
+    gap: 0.5rem;
+
+    .edit-btn {
+      background: $edit-color;
+      border: none;
+      padding: 0.4rem 0.8rem;
+      border-radius: 20px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      transition: background 0.2s;
+      color: $text-color;
+      border: 1px solid transparent;
+
+      &:hover {
+        background: $edit-hover;
+        border-color: $primary-color;
+      }
+
+      &:active {
+        transform: scale(0.97);
+      }
+    }
+
+    .delete-btn {
+      background: $danger-color;
+      border: none;
+      padding: 0.4rem 0.8rem;
+      border-radius: 20px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      transition: background 0.2s;
+      color: $text-color;
+      border: 1px solid transparent;
+
+      &:hover {
+        background: $danger-hover;
+        border-color: $primary-color;
+      }
+
+      &:active {
+        transform: scale(0.97);
+      }
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .users-table {
+    font-size: 0.85rem;
+
+    th, td {
+      padding: 0.5rem 0.25rem;
+    }
+
+    .user-actions {
+      flex-direction: column;
+      gap: 0.3rem;
+
+      .edit-btn,
+      .delete-btn {
+        padding: 0.3rem 0.6rem;
+        font-size: 0.8rem;
+      }
+    }
+  }
+}

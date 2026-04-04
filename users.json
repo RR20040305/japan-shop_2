@@ -1,0 +1,58 @@
+[
+  {
+    "id": 1,
+    "email": "admin@example.com",
+    "first_name": "Admin",
+    "last_name": "Adminov",
+    "password": "$2b$10$RZIZKmIXX1TePZC8b7YR2OzjoXxXrPLFhgCsjVUR8U2OLO2Zp0Jo6",
+    "role": "admin"
+  },
+  {
+    "id": 2,
+    "email": "seller@example.com",
+    "first_name": "Seller",
+    "last_name": "Sellers",
+    "password": "$2b$10$RnsA79CjGvI/t3VYMM91PenPNXf2uhtidfV8yRAwAU49zi8Achlx6",
+    "role": "seller"
+  },
+  {
+    "id": 3,
+    "email": "user@example.com",
+    "first_name": "User",
+    "last_name": "Users",
+    "password": "$2b$10$somehash",
+    "role": "user"
+  },
+  {
+    "id": 6,
+    "email": "test2user@gmail.com",
+    "first_name": "Тест",
+    "last_name": "Тестов",
+    "password": "$2b$10$m/NqwdTIrLUTRxd2ewlaweZPwpbPymwpdij8chm7qHGPvwsjm1Jq.",
+    "role": "user"
+  },
+  {
+    "id": 7,
+    "email": "example1@mail.com",
+    "first_name": "Иван",
+    "last_name": "Иванов",
+    "password": "$2b$10$OIx7BE.6MAXP3iKhvb0qJ./Ntz5WDdm3VRKLllMqywtywuu1Zl71K",
+    "role": "user"
+  },
+  {
+    "id": 8,
+    "email": "myadmin@mail.com",
+    "first_name": "Админ",
+    "last_name": "Админов",
+    "password": "$2b$10$ACy6zAhzJtTLjdUKHf/3WONVHN0HE/bxH8FirXG0QKGaUl0cvo/w6",
+    "role": "admin"
+  },
+  {
+    "id": 9,
+    "email": "myseller@mail.com",
+    "first_name": "Продавец",
+    "last_name": "Продавцов",
+    "password": "$2b$10$ABiTGoeeF/WEk1tWhAkdEe.oGQcBPqyX0xMVYYN5BqjOAT.X0yyvm",
+    "role": "seller"
+  }
+]
