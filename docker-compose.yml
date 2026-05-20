@@ -34,12 +34,6 @@ services:
       - ./data:/app/data
     networks:
       - app-net
-    healthcheck:
-      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:3000/health || exit 1"]
-      interval: 5s
-      timeout: 5s
-      retries: 12
-      start_period: 10s
 
   backend2:
     build: .
@@ -63,12 +57,6 @@ services:
       - ./data:/app/data
     networks:
       - app-net
-    healthcheck:
-      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:3000/health || exit 1"]
-      interval: 5s
-      timeout: 5s
-      retries: 12
-      start_period: 10s
 
   backend3:
     build: .
@@ -92,12 +80,6 @@ services:
       - ./data:/app/data
     networks:
       - app-net
-    healthcheck:
-      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:3000/health || exit 1"]
-      interval: 5s
-      timeout: 5s
-      retries: 12
-      start_period: 10s
 
   nginx:
     image: nginx:alpine
@@ -108,12 +90,9 @@ services:
       - ./nginx/conf.d:/etc/nginx/conf.d        # <-- именно эта папка
       - ./certs:/etc/nginx/certs:ro  
     depends_on:
-      backend1:
-        condition: service_healthy
-      backend2:
-        condition: service_healthy
-      backend3:
-        condition: service_healthy
+      - backend1
+      - backend2
+      - backend3
     networks:
       - app-net
 

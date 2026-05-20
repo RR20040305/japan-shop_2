@@ -5,8 +5,6 @@ WORKDIR /app
 COPY backend/package*.json ./
 RUN npm install
 
-RUN apk add --no-cache wget
-
 # Копируем весь бэкенд
 COPY backend/ .
 

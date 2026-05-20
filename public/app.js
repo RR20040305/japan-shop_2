@@ -2,6 +2,7 @@
 const homeBtn = document.getElementById('home-btn');
 const aboutBtn = document.getElementById('about-btn');
 const remindersBtn = document.getElementById('reminders-btn');
+const usersBtn = document.getElementById('users-btn');
 const logoutBtn = document.getElementById('logout-btn');
 const appDiv = document.getElementById('app');
 const loginFormDiv = document.getElementById('login-form');
@@ -22,8 +23,6 @@ const VAPID_PUBLIC_KEY = 'BOLQIbeN6CmamaRULTsakQ_7Oxwa1NZJhEzGAkEOQeyl9YKbHwIixo
 window.login = login;
 window.register = register;
 window.logout = logout;
-
-console.log('app.js loaded');
 
 // ---------- Вспомогательные ----------
 function showAuthForms(show) {
@@ -94,6 +93,7 @@ async function login() {
       showAuthForms(false);
       showLogoutButton(true);
       if (pushControls) pushControls.style.display = 'block';
+      if (usersBtn) usersBtn.style.display = (userRole === 'admin') ? 'inline-block' : 'none';
       setupPushSync();
       initSocket();
       checkPushSubscription();
@@ -110,31 +110,31 @@ async function login() {
 
 function logout() {
   if (socket) socket.disconnect();
-  unsubscribeFromPush();          // вызов до обнуления токена (токен ещё жив)
+  unsubscribeFromPush();
   accessToken = null;
   userRole = null;
   localStorage.removeItem('token');
   showAuthForms(true);
   showLogoutButton(false);
   if (pushControls) pushControls.style.display = 'none';
+  if (usersBtn) usersBtn.style.display = 'none';
   if (appDiv) appDiv.innerHTML = '';
   showLoginForm();
 }
 
-// ---------- WebSocket (реальный) ----------
+// ---------- WebSocket ----------
 function initSocket() {
-  if (socket) socket.disconnect();                // отключаем старое соединение
+  if (socket) socket.disconnect();
   socket = io(`${location.protocol}//${location.host}`, {
     path: '/socket.io',
     transports: ['websocket', 'polling']
   });
-  socket.on('connect', () => console.log('✅ WebSocket connected'));
+  socket.on('connect', () => console.log('WebSocket connected'));
   socket.on('productAdded', (product) => {
-    console.log('🆕 New product via WebSocket:', product);
     showToast(`Новый товар: ${product.title} – ${product.price} ₽`);
     loadProducts();
   });
-  socket.on('disconnect', () => console.log('❌ WebSocket disconnected'));
+  socket.on('disconnect', () => console.log('WebSocket disconnected'));
 }
 
 function showToast(msg) {
@@ -149,15 +149,13 @@ function showToast(msg) {
   setTimeout(() => toast.remove(), 4000);
 }
 
-// ---------- Push уведомления ----------
+// ---------- Push ----------
 function urlBase64ToUint8Array(base64String) {
   const padding = '='.repeat((4 - base64String.length % 4) % 4);
   const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
   const rawData = window.atob(base64);
   const outputArray = new Uint8Array(rawData.length);
-  for (let i = 0; i < rawData.length; ++i) {
-    outputArray[i] = rawData.charCodeAt(i);
-  }
+  for (let i = 0; i < rawData.length; ++i) outputArray[i] = rawData.charCodeAt(i);
   return outputArray;
 }
 
@@ -168,30 +166,22 @@ async function subscribeToPush() {
   }
   try {
     const registration = await navigator.serviceWorker.ready;
-    // Всегда получаем новую подписку (старая будет заменена)
     if (!VAPID_PUBLIC_KEY || VAPID_PUBLIC_KEY === 'ВАШ_ПУБЛИЧНЫЙ_VAPID_КЛЮЧ') {
-      alert('VAPID ключ не настроен. Свяжитесь с администратором.');
+      alert('VAPID ключ не настроен.');
       return;
     }
     const subscription = await registration.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
     });
-    const res = await fetch('/api/push/subscribe', {
+    await fetch('/api/push/subscribe', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${accessToken}`
-      },
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` },
       body: JSON.stringify(subscription)
     });
-    if (res.ok) {
-      console.log('Push subscription saved on server');
-      if (enablePushBtn) enablePushBtn.style.display = 'none';
-      if (disablePushBtn) disablePushBtn.style.display = 'inline-block';
-    } else {
-      console.error('Failed to save subscription');
-    }
+    console.log('Push subscription saved');
+    if (enablePushBtn) enablePushBtn.style.display = 'none';
+    if (disablePushBtn) disablePushBtn.style.display = 'inline-block';
   } catch (err) {
     console.error('Push subscription error:', err);
     alert('Не удалось подписаться на уведомления');
@@ -199,17 +189,14 @@ async function subscribeToPush() {
 }
 
 async function unsubscribeFromPush() {
-  if (!accessToken) return;        // <-- новая строка
+  if (!accessToken) return;
   try {
     const registration = await navigator.serviceWorker.ready;
     const subscription = await registration.pushManager.getSubscription();
     if (subscription) {
       await fetch('/api/push/unsubscribe', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`
-        },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` },
         body: JSON.stringify({ endpoint: subscription.endpoint })
       });
       await subscription.unsubscribe();
@@ -235,7 +222,7 @@ async function checkPushSubscription() {
   }
 }
 
-// ---------- Товары (с локальным резервом) ----------
+// ---------- Товары ----------
 const LOCAL_PRODUCTS_KEY = 'tokyo_drift_products';
 
 function saveProductsToLocal(products) {
@@ -280,21 +267,18 @@ async function addProduct() {
   products.push(newProduct);
   saveProductsToLocal(products);
   displayProducts(products);
-  // Очистка формы
+
   document.getElementById('prod-title').value = '';
   document.getElementById('prod-category').value = '';
   document.getElementById('prod-description').value = '';
   document.getElementById('prod-price').value = '';
   document.getElementById('prod-amount').value = '';
   if (errorDiv) errorDiv.textContent = '';
-  // Отправка на сервер
+
   try {
     const res = await fetch('/api/products', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${accessToken}`
-      },
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` },
       body: JSON.stringify({ title, category, description, price, amount })
     });
     if (res.ok) {
@@ -306,6 +290,68 @@ async function addProduct() {
   } catch (err) {
     console.warn('Товар сохранён только локально');
   }
+}
+
+async function editProduct(id) {
+  const products = loadProductsFromLocal();
+  const product = products.find(p => p.id == id);
+  if (!product) return;
+
+  // Находим карточку товара и заменяем её формой редактирования
+  const card = document.querySelector(`.product-card[data-id="${id}"]`);
+  if (!card) return;
+
+  card.innerHTML = `
+    <div class="product-card__content">
+      <input type="text" id="edit-title-${id}" value="${escapeHtml(product.title)}" class="input">
+      <input type="text" id="edit-category-${id}" value="${escapeHtml(product.category)}" class="input">
+      <textarea id="edit-description-${id}" class="input">${escapeHtml(product.description || '')}</textarea>
+      <input type="number" id="edit-price-${id}" value="${product.price}" class="input" step="0.01">
+      <input type="number" id="edit-amount-${id}" value="${product.amount}" class="input">
+      <button class="save-edit-btn" data-id="${id}">Сохранить</button>
+      <button class="cancel-edit-btn" data-id="${id}">Отмена</button>
+    </div>
+  `;
+
+  document.querySelector(`.save-edit-btn[data-id="${id}"]`).addEventListener('click', () => saveEdit(id));
+  document.querySelector(`.cancel-edit-btn[data-id="${id}"]`).addEventListener('click', () => loadProducts());
+}
+
+async function saveEdit(id) {
+  const title = document.getElementById(`edit-title-${id}`)?.value;
+  const category = document.getElementById(`edit-category-${id}`)?.value;
+  const description = document.getElementById(`edit-description-${id}`)?.value;
+  const price = parseFloat(document.getElementById(`edit-price-${id}`)?.value);
+  const amount = parseInt(document.getElementById(`edit-amount-${id}`)?.value);
+
+  if (!title || !category || isNaN(price) || isNaN(amount)) {
+    alert('Заполните все обязательные поля');
+    return;
+  }
+
+  try {
+    const res = await fetch(`/api/products/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` },
+      body: JSON.stringify({ title, category, description, price, amount })
+    });
+    if (res.ok) {
+      loadProducts(); // обновить список
+    } else {
+      alert('Ошибка сохранения');
+    }
+  } catch (err) {
+    alert('Ошибка соединения');
+  }
+}
+
+async function deleteProduct(id) {
+  if (!confirm('Удалить товар?')) return;
+  await fetch(`/api/products/${id}`, {
+    method: 'DELETE',
+    headers: { 'Authorization': `Bearer ${accessToken}` }
+  });
+  loadProducts();
 }
 
 function displayProducts(products) {
@@ -330,13 +376,15 @@ function displayProducts(products) {
     html += '<div class="product-container">';
     products.forEach(p => {
       html += `
-        <div class="product-card">
+        <div class="product-card" data-id="${p.id}">
           <div class="product-card__content">
             <h3 class="product-card__title">${escapeHtml(p.title)}</h3>
             <span class="product-card__category">${escapeHtml(p.category)}</span>
             <span class="product-card__amount">Остаток: ${p.amount}</span>
             <p class="product-card__description">${escapeHtml(p.description || '')}</p>
             <p class="product-card__price">${p.price} ₽</p>
+            ${(userRole === 'seller' || userRole === 'admin') ? `<button class="edit-product-btn" data-id="${p.id}">Редактировать</button>` : ''}
+            ${userRole === 'admin' ? `<button class="delete-product-btn" data-id="${p.id}">Удалить</button>` : ''}
           </div>
         </div>
       `;
@@ -344,17 +392,21 @@ function displayProducts(products) {
     html += '</div>';
   }
   appDiv.innerHTML = html;
+
   if (userRole === 'seller' || userRole === 'admin') {
     document.getElementById('add-product-btn')?.addEventListener('click', addProduct);
+    document.querySelectorAll('.edit-product-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => editProduct(e.target.dataset.id));
+    });
+  }
+  if (userRole === 'admin') {
+    document.querySelectorAll('.delete-product-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => deleteProduct(e.target.dataset.id));
+    });
   }
 }
 
-function escapeHtml(str) {
-  if (!str) return '';
-  return str.replace(/[&<>]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m] || m));
-}
-
-// ---------- Напоминания (синхронизация с сервером) ----------
+// ---------- Напоминания ----------
 const REMINDERS_KEY = 'tokyo_drift_reminders';
 
 async function loadRemindersFromServer() {
@@ -370,20 +422,14 @@ async function loadRemindersFromServer() {
 
 async function syncReminders() {
   const serverReminders = await loadRemindersFromServer();
-  // Всегда обновляем локальный кэш (даже если сервер вернул пустой массив)
   localStorage.setItem(REMINDERS_KEY, JSON.stringify(serverReminders));
   renderReminders(serverReminders);
 }
 
 function showReminders() {
-  if (!accessToken) {
-    appDiv.innerHTML = '<p>Пожалуйста, войдите.</p>';
-    return;
-  }
-  // Показываем кэш сразу
+  if (!accessToken) { appDiv.innerHTML = '<p>Пожалуйста, войдите.</p>'; return; }
   const cached = localStorage.getItem(REMINDERS_KEY);
   renderReminders(cached ? JSON.parse(cached) : []);
-  // Затем синхронизируемся с сервером
   syncReminders();
 }
 
@@ -417,13 +463,9 @@ function renderReminders(reminders) {
   }
   html += '</div>';
   appDiv.innerHTML = html;
-
   document.getElementById('add-reminder-btn')?.addEventListener('click', addReminder);
   document.querySelectorAll('.delete-reminder-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const id = parseInt(e.target.dataset.id);
-      deleteReminder(id);
-    });
+    btn.addEventListener('click', (e) => deleteReminder(parseInt(e.target.dataset.id)));
   });
 }
 
@@ -431,31 +473,19 @@ async function addReminder() {
   const text = document.getElementById('reminder-text').value.trim();
   const datetimeValue = document.getElementById('reminder-datetime').value;
   const errorDiv = document.getElementById('add-reminder-error');
-  if (!text) {
-    errorDiv.textContent = 'Введите текст заметки';
-    return;
-  }
+  if (!text) { errorDiv.textContent = 'Введите текст заметки'; return; }
   if (datetimeValue) {
     const fireDate = new Date(datetimeValue).getTime();
-    if (fireDate <= Date.now()) {
-      errorDiv.textContent = 'Дата и время должны быть в будущем';
-      return;
-    }
+    if (fireDate <= Date.now()) { errorDiv.textContent = 'Дата и время должны быть в будущем'; return; }
     try {
       await fetch('/api/reminders', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`
-        },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` },
         body: JSON.stringify({ text, fire_date: new Date(datetimeValue).toISOString() })
       });
-    } catch (err) {
-      errorDiv.textContent = 'Ошибка соединения';
-      return;
-    }
+    } catch (err) { errorDiv.textContent = 'Ошибка соединения'; return; }
   }
-  syncReminders(); // обновить список
+  syncReminders();
 }
 
 async function deleteReminder(id) {
@@ -466,24 +496,87 @@ async function deleteReminder(id) {
   syncReminders();
 }
 
-// Обработчик сообщений от Service Worker (для синхронизации после push)
 function setupPushSync() {
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.addEventListener('message', (event) => {
-      if (event.data && event.data.type === 'SYNC_REMINDERS') {
-        syncReminders();
-      }
+      if (event.data && event.data.type === 'SYNC_REMINDERS') syncReminders();
     });
   }
 }
 
-// ---------- Страницы ----------
+// ---------- Админ-панель (пользователи) ----------
+async function showUsers() {
+  if (!accessToken || userRole !== 'admin') return;
+  try {
+    const res = await fetch('/api', { headers: { 'Authorization': `Bearer ${accessToken}` } });
+    if (!res.ok) throw new Error('Ошибка загрузки');
+    const users = await res.json();
+    renderUsers(users);
+  } catch (err) {
+    appDiv.innerHTML = '<p class="error">Ошибка загрузки пользователей</p>';
+  }
+}
+
+function renderUsers(users) {
+  let html = `<h2>Управление пользователями</h2>
+    <div class="user-list" style="display:grid; gap:1rem; margin-top:1rem;">`;
+  users.forEach(u => {
+    html += `
+      <div class="product-card" style="display:flex; align-items:center; justify-content:space-between; padding:1rem;">
+        <div>
+          <strong>${escapeHtml(u.email)}</strong> (${escapeHtml(u.first_name)} ${escapeHtml(u.last_name)})<br>
+          Роль: <span id="role-${u.id}">${escapeHtml(u.role)}</span> 
+          ${u.isBlocked ? '<span style="color:red;"> [Заблокирован]</span>' : ''}
+        </div>
+        <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+          ${!u.isBlocked ? 
+            `<button class="block-btn" data-id="${u.id}">Заблокировать</button>` :
+            `<button class="unblock-btn" data-id="${u.id}">Разблокировать</button>`
+          }
+          <select class="role-select" data-id="${u.id}">
+            <option value="user" ${u.role === 'user' ? 'selected' : ''}>Пользователь</option>
+            <option value="seller" ${u.role === 'seller' ? 'selected' : ''}>Продавец</option>
+            <option value="admin" ${u.role === 'admin' ? 'selected' : ''}>Админ</option>
+          </select>
+        </div>
+      </div>`;
+  });
+  html += '</div>';
+  appDiv.innerHTML = html;
+  document.querySelectorAll('.block-btn').forEach(btn => btn.addEventListener('click', () => blockUser(btn.dataset.id)));
+  document.querySelectorAll('.unblock-btn').forEach(btn => btn.addEventListener('click', () => unblockUser(btn.dataset.id)));
+  document.querySelectorAll('.role-select').forEach(sel => sel.addEventListener('change', () => changeRole(sel.dataset.id, sel.value)));
+}
+
+async function blockUser(id) {
+  await fetch(`/api/${id}/block`, { method: 'PUT', headers: { 'Authorization': `Bearer ${accessToken}` } });
+  showUsers();
+}
+async function unblockUser(id) {
+  await fetch(`/api/${id}/unblock`, { method: 'PUT', headers: { 'Authorization': `Bearer ${accessToken}` } });
+  showUsers();
+}
+async function changeRole(id, newRole) {
+  await fetch(`/api/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` },
+    body: JSON.stringify({ role: newRole })
+  });
+  showUsers();
+}
+
+// ---------- Навигация ----------
 function showHome() {
   if (!accessToken) { appDiv.innerHTML = '<p>Пожалуйста, войдите.</p>'; return; }
   loadProducts();
 }
 function showAbout() {
   appDiv.innerHTML = '<h2>О приложении</h2><p>PWA магазин "Токийский дрифт". Версия 1.0</p>';
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return str.replace(/[&<>]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m] || m));
 }
 
 // ---------- Инициализация ----------
@@ -496,6 +589,7 @@ document.addEventListener('DOMContentLoaded', () => {
   homeBtn?.addEventListener('click', showHome);
   aboutBtn?.addEventListener('click', showAbout);
   remindersBtn?.addEventListener('click', showReminders);
+  usersBtn?.addEventListener('click', showUsers);
   enablePushBtn?.addEventListener('click', subscribeToPush);
   disablePushBtn?.addEventListener('click', unsubscribeFromPush);
 
@@ -508,6 +602,7 @@ document.addEventListener('DOMContentLoaded', () => {
       showAuthForms(false);
       showLogoutButton(true);
       if (pushControls) pushControls.style.display = 'block';
+      if (usersBtn) usersBtn.style.display = (userRole === 'admin') ? 'inline-block' : 'none';
       initSocket();
       checkPushSubscription();
       loadProducts();
