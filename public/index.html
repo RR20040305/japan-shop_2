@@ -1,305 +1,75 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-    <title>Главная - Вкусняшка-няшка</title>
-    <link rel="icon" href="favicon.ico" type="image/x-icon">
-    <link rel="stylesheet" href="styles.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#4285f4">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="DriftShop">
+  <title>Токийский дрифт – магазин</title>
+  <link rel="stylesheet" href="https://unpkg.com/chota@latest">
+  <link rel="stylesheet" href="styles.css">
 </head>
-<body class="page">
-    <header class="site-header">  
-        <div class="title">
-            <h1 class="title-text">Магазин "Токийский дрифт"</h1> 
-            <p class="title-des">Магазин японских вкусняшек.</p>
-        </div>
-    </header> 
+<body>
+  <header class="site-header">
+    <h1>Токийский дрифт</h1>
+    <nav>
+      <button id="home-btn" class="button">Главная</button>
+      <button id="about-btn" class="button">О нас</button>
+      <button id="logout-btn" class="button error" style="display:none;">Выйти</button>
+    </nav>
+    <!-- Кнопки управления уведомлениями -->
+    <div id="push-controls" style="display:none; margin-top: 0.5rem;">
+      <button id="reminders-btn" class="button">Напоминания</button>
+      <button id="enable-push-btn" class="button">Включить уведомления</button>
+      <button id="disable-push-btn" class="button" style="display:none;">Отключить уведомления</button>
+    </div>
+  </header>
 
-    <main>
-        <section class="auth-forms">
-            <h2>Регистрация</h2>
-            <form id="registerForm">
-                <label>Email: <input type="email" id="regEmail" required></label>
-                <label>Имя: <input type="text" id="regFirstName" required></label>
-                <label>Фамилия: <input type="text" id="regLastName" required></label>
-                <label>Пароль: <input type="password" id="regPassword" required minlength="6"></label>
-                <button type="submit">Зарегистрироваться</button>
-            </form>
+  <main class="products-area" id="app">
+    <!-- Контент загружается динамически -->
+  </main>
 
-            <h2>Вход</h2>
-            <form id="loginForm">
-                <label>Email: <input type="email" id="loginEmail" required></label>
-                <label>Пароль: <input type="password" id="loginPassword" required></label>
-                <button type="submit">Войти</button>
-            </form>
-            <div id="authMessage"></div>
-        </section>
-        <section class="add-product-form">
-            <h3>Добавить новый товар</h3>
-            <form id="addProductForm">
-                <label for="name">Название:</label>
-                <input type="text" id="name" required>
+  <div id="auth-container" style="margin-top: 2rem;">
+    <div id="login-form" class="card">
+      <h3>Вход</h3>
+      <input type="email" id="login-email" placeholder="Email" class="input">
+      <input type="password" id="login-password" placeholder="Пароль" class="input">
+      <button id="login-btn" class="button primary">Войти</button>
+      <button id="show-register-btn" class="button">Регистрация</button>
+      <div id="login-error" class="error"></div>
+    </div>
+    <div id="register-form" class="card hidden">
+      <h3>Регистрация</h3>
+      <input type="email" id="reg-email" placeholder="Email" class="input">
+      <input type="text" id="reg-firstname" placeholder="Имя" class="input">
+      <input type="text" id="reg-lastname" placeholder="Фамилия" class="input">
+      <input type="password" id="reg-password" placeholder="Пароль (мин. 6 символов)" class="input">
+      <button id="register-btn" class="button primary">Зарегистрироваться</button>
+      <button id="show-login-btn" class="button">Назад к входу</button>
+      <div id="register-error" class="error"></div>
+    </div>
+  </div>
 
-                <label for="price">Цена (₽):</label>
-                <input type="number" id="price" step="1" min="1" required>
+  <footer class="site-footer">
+    2026
+  </footer>
 
-                <label for="category">Категория:</label>
-                <input type="text" id="category" required>
+  <!-- Подключаем Socket.IO клиент (сервер раздаёт /socket.io/socket.io.js) -->
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/app.js"></script>
 
-                <label for="amount">Количество на складе:</label>
-                <input type="number" id="amount" step="1" min="0" required>
-
-                <label for="description">Описание:</label>
-                <textarea id="description" rows="3"></textarea>
-
-                <button type="submit" id="submitBtn">Добавить товар</button>
-            </form>
-        </section>
-
-        <section class="products-area">
-            <div class="card-header">
-                <h3 class="card-title">Наш ассортимент товаров</h3>
-            </div>
-            <div class="product-container" id="product-container">
-                <div class="loading-spinner">Загрузка...</div>
-            </div>
-        </section>
-    </main>
-
-    <footer class="site-footer">
-        <div class="site-footer__container">
-            <nav class="footer-nav" aria-label="Навигация по футеру">
-                <ul class="footer-nav__list">
-                    <li class="footer-nav__item">
-                        <a href="contacts.html" class="footer-nav__link">Контакты</a>
-                    </li>
-                    <li class="footer-nav__item">
-                        <a href="#" class="footer-nav__link">Политика конфиденциальности</a>
-                    </li>
-                </ul>
-            </nav>
-            <p class="site-footer__copyright">© 2026, Магазин «Токийский дрифт»</p>
-        </div>
-    </footer>
-
-    <script>
-        const API_URL = '/api/products';
-        const productContainer = document.getElementById('product-container');
-        const addForm = document.getElementById('addProductForm');
-        const submitBtn = document.getElementById('submitBtn');
-
-        async function loadProducts() {
-            try {
-                const response = await fetch(API_URL);
-                if (!response.ok) throw new Error('Ошибка загрузки');
-                const products = await response.json();
-                renderProducts(products);
-            } catch (error) {
-                console.error('Ошибка загрузки товаров:', error);
-                productContainer.innerHTML = '<p style="color:red;">Не удалось загрузить товары.</p>';
-            }
-        }
-
-        function renderProducts(products) {
-            if (products.length === 0) {
-                productContainer.innerHTML = '<p>Товаров пока нет.</p>';
-                return;
-            }
-
-            productContainer.innerHTML = products.map(product => `
-                <div class="product-card" data-id="${product.id}">
-                    <div class="product-card__image">
-                        <img src="img/${product.id}.jpg" alt="${product.name}" class="card-img-top card-image">
-                    </div>
-                    <div class="product-card__content">
-                        <h3 class="product-card__title">${escapeHtml(product.title)}</h3>
-                        <p class="product-card__description">${escapeHtml(product.description)}</p>
-                        <p class="product-card__price">Цена: ${product.price} ₽</p>
-                        <p class="product-card__category">${escapeHtml(product.category)}</p>
-                        <p class="product-card__amount">${product.amount}</p>
-                        <div class="product-card__actions">
-                            <button class="edit-btn">Редактировать</button>
-                            <button class="delete-btn">Удалить</button>
-                        </div>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        function escapeHtml(unsafe) {
-            if (!unsafe) return '';
-            return unsafe
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;')
-                .replace(/'/g, '&#039;');
-        }
-
-        productContainer.addEventListener('click', async (e) => {
-            const target = e.target;
-            const card = target.closest('.product-card');
-            if (!card) return;
-
-            const id = card.dataset.id;
-            if (target.classList.contains('delete-btn')) {
-                if (!confirm('Вы уверены, что хотите удалить товар?')) return;
-                try {
-                    const response = await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
-                    if (!response.ok) {
-                        const err = await response.json();
-                        throw new Error(err.error || 'Ошибка при удалении');
-                    }
-                    alert('Товар удалён');
-                    loadProducts();
-                } catch (error) {
-                    alert('Ошибка: ' + error.message);
-                }
-            } else if (target.classList.contains('edit-btn')) {
-                editProduct(id);
-            }
-        });
-
-        async function editProduct(id) {
-            const newTitle = prompt('Введите новое название (или оставьте пустым):');
-            const newPriceInput = prompt('Введите новую цену (или оставьте пустым):');
-            const newDescription = prompt('Введите новое описание (или оставьте пустым):');
-            const newCategory = prompt('Введите новую категорию (или оставьте пустым):');
-            const newAmount = prompt('Введите новое количество (или оставьте пустым):');
-
-            const updates = {};
-            if (newTitle && newTitle.trim() !== '') updates.title = newTitle.trim();
-            if (newPriceInput && newPriceInput.trim() !== '') {
-                const price = parseInt(newPriceInput);
-                if (!isNaN(price) && price > 0) updates.price = price;
-                else { alert('Некорректная цена'); return; }
-            }
-            if (newDescription && newDescription.trim() !== '') updates.description = newDescription.trim();
-            if (newCategory && newCategory.trim() !== '') updates.category = newCategory.trim();
-            if (newAmount !== null && newAmount.trim() !== '') {
-                const amount = parseInt(newAmount);
-                if (!isNaN(amount) && amount >= 0) updates.amount = amount;
-                else { alert('Некорректное количество'); return; }
-            }
-
-            if (Object.keys(updates).length === 0) {
-                alert('Нет данных для обновления');
-                return;
-            }
-
-            try {
-                const response = await fetch(`${API_URL}/${id}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(updates)
-                });
-                if (!response.ok) {
-                    const err = await response.json();
-                    throw new Error(err.error || 'Ошибка при обновлении');
-                }
-                alert('Товар обновлён');
-                loadProducts();
-            } catch (error) {
-                alert('Ошибка: ' + error.message);
-            }
-        }
-
-        addForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const title = document.getElementById('name').value.trim();
-            const price = parseInt(document.getElementById('price').value);
-            const description = document.getElementById('description').value.trim();
-            const category = document.getElementById('category').value.trim();
-            const amount = parseInt(document.getElementById('amount').value);
-
-            if (!name || isNaN(price) || price <= 0) {
-                alert('Пожалуйста, заполните название и корректную цену.');
-                return;
-            }
-
-            submitBtn.disabled = true;
-            submitBtn.textContent = 'Сохранение...';
-
-            try {
-                const response = await fetch(API_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ title, price, description, category, amount })
-                });
-
-                if (!response.ok) {
-                    const err = await response.json();
-                    throw new Error(err.error || 'Ошибка при добавлении');
-                }
-
-                const newProduct = await response.json();
-                alert(`Товар "${newProduct.name}" успешно добавлен!`);
-                addForm.reset();
-                loadProducts();
-            } catch (error) {
-                alert('Ошибка: ' + error.message);
-            } finally {
-                submitBtn.disabled = false;
-                submitBtn.textContent = 'Добавить товар';
-            }
-        });
-
-        document.addEventListener('DOMContentLoaded', loadProducts);
-
-        const API_AUTH_URL = '/api/auth'; // базовый URL для аутентификации
-
-        // Регистрация
-        document.getElementById('registerForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const email = document.getElementById('regEmail').value;
-        const first_name = document.getElementById('regFirstName').value;
-        const last_name = document.getElementById('regLastName').value;
-        const password = document.getElementById('regPassword').value;
-
-        try {
-            const response = await fetch(`${API_AUTH_URL}/register`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, first_name, last_name, password })
-            });
-
-            const data = await response.json();
-            if (response.ok) {
-            document.getElementById('authMessage').innerHTML = '<p style="color:green;">Регистрация успешна! Теперь вы можете войти.</p>';
-            document.getElementById('registerForm').reset();
-            } else {
-            document.getElementById('authMessage').innerHTML = `<p style="color:red;">Ошибка: ${data.error || 'Неизвестная ошибка'}</p>`;
-            }
-        } catch (err) {
-            document.getElementById('authMessage').innerHTML = '<p style="color:red;">Ошибка соединения с сервером</p>';
-        }
-        });
-
-        // Вход
-        document.getElementById('loginForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const email = document.getElementById('loginEmail').value;
-        const password = document.getElementById('loginPassword').value;
-
-        try {
-            const response = await fetch(`${API_AUTH_URL}/login`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password })
-            });
-
-            const data = await response.json();
-            if (response.ok && data.login) {
-            document.getElementById('authMessage').innerHTML = '<p style="color:green;">Вход выполнен успешно!</p>';
-            // Здесь можно, например, скрыть формы и показать приветствие
-            // или сохранить токен (если бы использовали JWT)
-            } else {
-            document.getElementById('authMessage').innerHTML = `<p style="color:red;">Ошибка: ${data.error || 'Неверные учетные данные'}</p>`;
-            }
-        } catch (err) {
-            document.getElementById('authMessage').innerHTML = '<p style="color:red;">Ошибка соединения с сервером</p>';
-        }
-        });
-    </script>
+  <!-- Регистрация Service Worker -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then(reg => console.log('Service Worker зарегистрирован:', reg.scope))
+          .catch(err => console.error('Ошибка регистрации SW:', err));
+      });
+    }
+  </script>
 </body>
 </html>
