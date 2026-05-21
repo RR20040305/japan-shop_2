@@ -14,8 +14,7 @@ const sequelize = new Sequelize(
 const UserSQL = sequelize.define('User', {
   id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
   email: { type: DataTypes.STRING, allowNull: false, unique: true },
-  first_name: DataTypes.STRING,
-  last_name: DataTypes.STRING,
+  last_name: { type: DataTypes.STRING, allowNull: false, index: true },
   password: DataTypes.STRING,
   role: { type: DataTypes.STRING, defaultValue: 'user' },
   isBlocked: { type: DataTypes.BOOLEAN, defaultValue: false }
@@ -42,4 +41,19 @@ Reminder.belongsTo(UserSQL, { foreignKey: 'user_id' });
 UserSQL.hasMany(PushSubscription, { foreignKey: 'user_id' });
 PushSubscription.belongsTo(UserSQL, { foreignKey: 'user_id' });
 
-module.exports = { sequelize, UserSQL, Reminder, PushSubscription };
+const SimpleUser = sequelize.define('SimpleUser', {
+  id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
+  first_name: { type: DataTypes.STRING, allowNull: false },
+  last_name: { type: DataTypes.STRING, allowNull: false },
+  age: { type: DataTypes.INTEGER, allowNull: false }
+}, { timestamps: true });   // createdAt и updatedAt создаются автоматически
+
+const Product = sequelize.define('Product', {
+  title: { type: DataTypes.STRING, allowNull: false },
+  category: { type: DataTypes.STRING, allowNull: false },
+  description: { type: DataTypes.TEXT },
+  price: { type: DataTypes.FLOAT, allowNull: false },
+  amount: { type: DataTypes.INTEGER, allowNull: false }
+});
+
+module.exports = { sequelize, UserSQL, Reminder, PushSubscription, SimpleUser, Product };

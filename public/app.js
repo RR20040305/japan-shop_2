@@ -17,7 +17,7 @@ let userRole = null;
 let socket = null;
 
 // ---------- VAPID публичный ключ (из .env) ----------
-const VAPID_PUBLIC_KEY = 'BOLQIbeN6CmamaRULTsakQ_7Oxwa1NZJhEzGAkEOQeyl9YKbHwIixobnpjSfBwsixVcmewo4aMcSfedUQWQUIRA';
+const VAPID_PUBLIC_KEY = 'BG90E6k2oX4JjTYgamzn9N-SBENQaFomVluew97_wgh9eok6dClwTUFCgcQgluF4y3ONeRUGcntnCHQF5ZM-isQ';
 
 // ---------- Глобальные функции ----------
 window.login = login;
@@ -110,7 +110,7 @@ async function login() {
 
 function logout() {
   if (socket) socket.disconnect();
-  unsubscribeFromPush();
+  unsubscribeFromPush();          // вызываем до очистки токена
   accessToken = null;
   userRole = null;
   localStorage.removeItem('token');
@@ -166,10 +166,6 @@ async function subscribeToPush() {
   }
   try {
     const registration = await navigator.serviceWorker.ready;
-    if (!VAPID_PUBLIC_KEY || VAPID_PUBLIC_KEY === 'ВАШ_ПУБЛИЧНЫЙ_VAPID_КЛЮЧ') {
-      alert('VAPID ключ не настроен.');
-      return;
-    }
     const subscription = await registration.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
@@ -258,37 +254,49 @@ async function addProduct() {
   const price = parseFloat(document.getElementById('prod-price')?.value);
   const amount = parseInt(document.getElementById('prod-amount')?.value);
   const errorDiv = document.getElementById('add-product-error');
+
   if (!title || !category || isNaN(price) || isNaN(amount)) {
     if (errorDiv) errorDiv.textContent = 'Заполните все обязательные поля';
     return;
   }
-  const newProduct = { id: Date.now(), title, category, description, price, amount };
-  const products = loadProductsFromLocal();
-  products.push(newProduct);
-  saveProductsToLocal(products);
-  displayProducts(products);
 
-  document.getElementById('prod-title').value = '';
-  document.getElementById('prod-category').value = '';
-  document.getElementById('prod-description').value = '';
-  document.getElementById('prod-price').value = '';
-  document.getElementById('prod-amount').value = '';
+  // Очищаем ошибку
   if (errorDiv) errorDiv.textContent = '';
 
   try {
     const res = await fetch('/api/products', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` },
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`
+      },
       body: JSON.stringify({ title, category, description, price, amount })
     });
+
     if (res.ok) {
       const serverProduct = await res.json();
-      const updated = loadProductsFromLocal().map(p => p.id === newProduct.id ? serverProduct : p);
-      saveProductsToLocal(updated);
-      displayProducts(updated);
+
+      // Добавляем полученный от сервера товар в локальный список
+      const products = loadProductsFromLocal();
+      products.push(serverProduct);
+      saveProductsToLocal(products);
+      displayProducts(products);
+
+      // Отправляем событие через WebSocket
+      if (socket) socket.emit('newProduct', serverProduct);
+
+      // Очищаем поля формы
+      document.getElementById('prod-title').value = '';
+      document.getElementById('prod-category').value = '';
+      document.getElementById('prod-description').value = '';
+      document.getElementById('prod-price').value = '';
+      document.getElementById('prod-amount').value = '';
+    } else {
+      const err = await res.json();
+      if (errorDiv) errorDiv.textContent = err.error || 'Ошибка добавления';
     }
   } catch (err) {
-    console.warn('Товар сохранён только локально');
+    if (errorDiv) errorDiv.textContent = 'Ошибка соединения';
   }
 }
 

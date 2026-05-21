@@ -12,14 +12,22 @@ const authRoutes = require('./routes/users');
 const productRoutes = require('./routes/products');
 const authMiddleware = require('./middleware/auth').authMiddleware;
 const { Op } = require('sequelize');
+const { cacheMiddleware, clearCache } = require('./utils/cache');
 
 const app = express();
 app.set('trust proxy', 1);
+app.use((req, res, next) => {
+  res.setHeader('X-Server-ID', process.env.SERVER_ID || 'unknown');
+  next();
+});
 const PORT = process.env.PORT || 3000;
 
-// CORS и парсинг JSON
+// ---------- ВАЖНО: CORS и парсинг JSON ДО ВСЕХ МАРШРУТОВ ----------
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
+
+// ---------- Простое API для управления пользователями (PostgreSQL) ----------
+app.use('/api/simple-users', require('./routes/simpleUsers'));
 
 // ---------- Планировщик напоминаний ----------
 const cron = require('node-cron');
@@ -36,12 +44,11 @@ cron.schedule('* * * * *', async () => {
     });
 
     for (const reminder of reminders) {
-      // Атомарно помечаем как отправленное
       const [updatedCount] = await Reminder.update(
         { is_sent: true },
         { where: { id: reminder.id, is_sent: false } }
       );
-      if (updatedCount === 0) continue; // уже обработано другим экземпляром
+      if (updatedCount === 0) continue;
 
       const subscriptions = await PushSubscription.findAll({
         where: { user_id: reminder.user_id }
@@ -78,6 +85,11 @@ app.use((req, res, next) => {
   next();
 });
 
+// Тестовый маршрут для балансировки
+app.get('/server', (req, res) => {
+  res.json({ server: `backend-${process.env.SERVER_ID || 'unknown'}` });
+});
+
 // Статические файлы
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -94,13 +106,11 @@ app.get('/health', (req, res) => {
 // ---------- Маршруты напоминаний ----------
 const reminderRoutes = express.Router();
 
-// Получить все напоминания пользователя
 reminderRoutes.get('/', authMiddleware, async (req, res) => {
   const reminders = await Reminder.findAll({ where: { user_id: req.user.sub } });
   res.json(reminders);
 });
 
-// Создать напоминание
 reminderRoutes.post('/', authMiddleware, async (req, res) => {
   const { text, fire_date } = req.body;
   if (!text || !fire_date) return res.status(400).json({ error: 'text and fire_date required' });
@@ -114,13 +124,11 @@ reminderRoutes.post('/', authMiddleware, async (req, res) => {
   res.status(201).json(reminder);
 });
 
-// Удалить напоминание
 reminderRoutes.delete('/:id', authMiddleware, async (req, res) => {
   await Reminder.destroy({ where: { id: req.params.id, user_id: req.user.sub } });
   res.json({ message: 'Deleted' });
 });
 
-// Закрытие уведомления – удаление напоминания (без authMiddleware)
 reminderRoutes.delete('/:id/close', async (req, res) => {
   try {
     const deleted = await Reminder.destroy({ where: { id: req.params.id } });
@@ -134,7 +142,6 @@ reminderRoutes.delete('/:id/close', async (req, res) => {
   }
 });
 
-// Отложить напоминание на 5 минут
 reminderRoutes.put('/:id/delay', authMiddleware, async (req, res) => {
   const reminder = await Reminder.findOne({ where: { id: req.params.id, user_id: req.user.sub } });
   if (!reminder) return res.status(404).json({ error: 'Not found' });
@@ -174,11 +181,13 @@ app.post('/api/push/unsubscribe', authMiddleware, async (req, res) => {
   }
 });
 
-// Публичный ключ для VAPID
 app.get('/api/push-key', (req, res) => {
-  const publicKey = process.env.VAPID_PUBLIC_KEY || 'BOLQIbeN6CmamaRULTsakQ_7Oxwa1NZJhEzGAkEOQeyl9YKbHwIixobnpjSfBwsixVcmewo4aMcSfedUQWQUIRA';
+  const publicKey = process.env.VAPID_PUBLIC_KEY || 'BG90E6k2oX4JjTYgamzn9N-SBENQaFomVluew97_wgh9eok6dClwTUFCgcQgluF4y3ONeRUGcntnCHQF5ZM-isQ';
   res.json({ publicKey });
 });
+
+// ---------- MongoDB API (нативный драйвер) ----------
+app.use('/api/mongo-users', require('./routes/mongoUsers'));
 
 // ---------- Товары и пользователи ----------
 app.use('/api/products', productRoutes);
@@ -204,12 +213,9 @@ if (process.env.NODE_ENV === 'production') {
 
 // ---------- Socket.IO ----------
 const io = socketIo(server, {
-  cors: {
-    origin: "*",
-    methods: ["GET", "POST"]
-  },
+  cors: { origin: "*", methods: ["GET", "POST"] },
   allowEIO3: true,
-  transports: ['polling', 'websocket']
+  transports: ['websocket', 'polling']
 });
 
 io.engine.on("connection_error", (err) => {
@@ -232,7 +238,7 @@ io.on('connection', (socket) => {
 // ---------- Запуск с повторными попытками подключения к БД ----------
 async function startServer() {
   const maxRetries = 10;
-  const retryDelay = 3000; // 3 секунды между попытками
+  const retryDelay = 3000;
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
@@ -249,13 +255,12 @@ async function startServer() {
     }
   }
 
-// Синхронизацию выполняет только один экземпляр (master)
-if (process.env.SERVER_ID === '3') {
-  await sequelize.sync({ alter: true });
-  console.log('✅ Database synced (master)');
-} else {
-  console.log('ℹ️ Skipping sync (non‑master)');
-}
+  if (process.env.SERVER_ID === '3') {
+    await sequelize.sync({ alter: true });
+    console.log('✅ Database synced (master)');
+  } else {
+    console.log('ℹ️ Skipping sync (non‑master)');
+  }
 
   server.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Server running on http://0.0.0.0:${PORT}`);
