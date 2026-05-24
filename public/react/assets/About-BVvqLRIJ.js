@@ -1,0 +1,1 @@
+import{t as e}from"./vendor-Bi0Lntj0.js";var t=e();function n(){return(0,t.jsx)(`h1`,{children:`О магазине (ленивая загрузка)`})}export{n as default};

@@ -34,9 +34,11 @@ services:
       - VAPID_PRIVATE_KEY=${VAPID_PRIVATE_KEY}
       - VAPID_SUBJECT=${VAPID_SUBJECT}
       - NODE_ENV=production
+      - RABBITMQ_URL=amqp://rabbitmq
     depends_on:
       - postgres
       - mongo
+      - rabbitmq
     volumes:
       - ./data:/app/data
     networks:
@@ -58,9 +60,11 @@ services:
       - VAPID_PRIVATE_KEY=${VAPID_PRIVATE_KEY}
       - VAPID_SUBJECT=${VAPID_SUBJECT}
       - NODE_ENV=production
+      - RABBITMQ_URL=amqp://rabbitmq
     depends_on:
       - postgres
       - mongo
+      - rabbitmq
     volumes:
       - ./data:/app/data
     networks:
@@ -82,9 +86,11 @@ services:
       - VAPID_PRIVATE_KEY=${VAPID_PRIVATE_KEY}
       - VAPID_SUBJECT=${VAPID_SUBJECT}
       - NODE_ENV=production
+      - RABBITMQ_URL=amqp://rabbitmq
     depends_on:
       - postgres
       - mongo
+      - rabbitmq
     volumes:
       - ./data:/app/data
     networks:
@@ -115,6 +121,38 @@ services:
       - backend1
       - backend2
       - backend3
+    networks:
+      - app-net
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - app-net
+
+  worker1:
+    build: .
+    command: ["node", "worker.js"]
+    environment:
+      - RABBITMQ_URL=amqp://rabbitmq
+      - SERVER_ID=worker1
+    depends_on:
+      - rabbitmq
+      - postgres
+    networks:
+      - app-net
+
+  worker2:
+    build: .
+    command: ["node", "worker.js"]
+    environment:
+      - RABBITMQ_URL=amqp://rabbitmq
+      - SERVER_ID=worker2
+    depends_on:
+      - rabbitmq
+      - postgres
     networks:
       - app-net
 

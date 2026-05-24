@@ -13,6 +13,10 @@ const productRoutes = require('./routes/products');
 const authMiddleware = require('./middleware/auth').authMiddleware;
 const { Op } = require('sequelize');
 const { cacheMiddleware, clearCache } = require('./utils/cache');
+const { ApolloServer } = require('@apollo/server');
+const { expressMiddleware } = require('@apollo/server/express4');
+const typeDefs = require('./graphql/schema');
+const resolvers = require('./graphql/resolvers');
 
 const app = express();
 app.set('trust proxy', 1);
@@ -25,6 +29,48 @@ const PORT = process.env.PORT || 3000;
 // ---------- ВАЖНО: CORS и парсинг JSON ДО ВСЕХ МАРШРУТОВ ----------
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
+
+// ---------- RabbitMQ Producer ----------
+const amqp = require('amqplib');
+let producerChannel = null;
+
+async function setupProducer() {
+  const conn = await amqp.connect(process.env.RABBITMQ_URL || 'amqp://rabbitmq');
+  const channel = await conn.createChannel();
+  await channel.assertExchange('tasks_exchange', 'direct', { durable: true });
+  producerChannel = channel;
+  console.log('✅ RabbitMQ producer ready');
+}
+
+setupProducer().catch(console.error);
+
+app.post('/tasks', async (req, res) => {
+  if (!producerChannel) {
+    return res.status(503).json({ error: 'RabbitMQ not connected yet' });
+  }
+  const { type, payload } = req.body;
+  if (!type || !payload) {
+    return res.status(400).json({ error: 'type and payload are required' });
+  }
+  const task = { type, payload, 'x-retry-count': 0 };
+  producerChannel.publish('tasks_exchange', 'task', Buffer.from(JSON.stringify(task)), { persistent: true });
+  console.log(`📤 Task published: ${type}`);
+  res.status(202).json({ message: 'Task accepted', task });
+});
+
+// ---------- GraphQL – ДОЛЖЕН БЫТЬ ДО 404 ----------
+let apollo = null;
+const initGraphQL = async () => {
+  apollo = new ApolloServer({ typeDefs, resolvers, introspection: true });
+  await apollo.start();
+  app.use(
+    '/graphql',
+    expressMiddleware(apollo, {
+      context: async ({ req }) => ({ req }),
+    })
+  );
+  console.log('🚀 GraphQL ready at /graphql');
+};
 
 // ---------- Простое API для управления пользователями (PostgreSQL) ----------
 app.use('/api/simple-users', require('./routes/simpleUsers'));
@@ -193,11 +239,6 @@ app.use('/api/mongo-users', require('./routes/mongoUsers'));
 app.use('/api/products', productRoutes);
 app.use('/api', authRoutes);
 
-// 404
-app.use((req, res) => {
-  res.status(404).json({ error: 'Route not found' });
-});
-
 // ---------- Настройка HTTPS / HTTP ----------
 let server;
 if (process.env.NODE_ENV === 'production') {
@@ -261,6 +302,14 @@ async function startServer() {
   } else {
     console.log('ℹ️ Skipping sync (non‑master)');
   }
+
+  // Инициализируем GraphQL ДО запуска сервера
+  await initGraphQL();
+
+  // 404 – ДОЛЖЕН БЫТЬ САМЫМ ПОСЛЕДНИМ
+  app.use((req, res) => {
+    res.status(404).json({ error: 'Route not found' });
+  });
 
   server.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Server running on http://0.0.0.0:${PORT}`);

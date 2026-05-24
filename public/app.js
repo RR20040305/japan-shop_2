@@ -24,6 +24,13 @@ window.login = login;
 window.register = register;
 window.logout = logout;
 
+const reactBtn = document.getElementById('react-btn');
+if (reactBtn) {
+  reactBtn.addEventListener('click', () => {
+    window.location.href = '/react/';
+  });
+}
+
 // ---------- Вспомогательные ----------
 function showAuthForms(show) {
   if (authContainer) authContainer.style.display = show ? 'block' : 'none';

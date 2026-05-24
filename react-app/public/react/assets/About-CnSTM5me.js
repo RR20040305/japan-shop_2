@@ -1,0 +1,1 @@
+import{t as e}from"./vendor-HMQ-8_VI.js";var t=e();function n(){return(0,t.jsx)(`h1`,{children:`О нас`})}export{n as default};
